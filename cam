@@ -1,0 +1,108 @@
+#!/usr/bin/env python3
+import RPi.GPIO as GPIO
+import time
+
+Vibrator = 11	# pin11
+
+def vibratorSetup(pin):
+	global vibratorPin
+	vibratorPin = pin
+	GPIO.setmode(GPIO.BOARD)   	# Numbers GPIOs by physical location
+	GPIO.setup(vibratorPin, GPIO.OUT)
+	GPIO.output(vibratorPin, GPIO.HIGH)
+
+def vibratorOn():
+	GPIO.output(vibratorPin, GPIO.LOW)
+
+def vibratorOff():
+	GPIO.output(vibratorPin, GPIO.HIGH)
+
+def vibratorBeep(x):
+	vibratorOn()
+	time.sleep(x)
+	vibratorOff()
+	time.sleep(x)
+
+def vibratorLoop():
+	while True:
+    	vibratorBeep(0.5)
+
+def vibratorDestroy():
+	GPIO.output(vibratorPin, GPIO.HIGH)
+	GPIO.cleanup()                 	# Release resource
+Camera functions : 
+
+import subprocess
+import base64
+import sys
+import time
+from openai import OpenAI
+
+client = OpenAI(api_key="sk-REPLACE_WITH_NEW_KEY")
+
+MODEL = "gpt-5-nano-2025-08-07"
+IMAGE_PATH = "captured_image.jpg"
+RESOLUTION = "640x480"
+
+
+def capture_image(path: str):
+    subprocess.run(["fswebcam", "-r", RESOLUTION, "-S", "2", "--no-banner", path], check=True)
+
+def to_data_url(path: str) -> str: 
+    with open(path, "rb") as f:
+        b64 = base64.b64encode(f.read()).decode("utf-8")
+    return f"data:image/jpeg;base64,{b64}"
+
+def extract_text(resp):
+    text = getattr(resp, "output_text", None)
+    if text:
+        return text.strip()
+    try:
+        for item in getattr(resp, "output", []):
+            for part in getattr(item, "content", []):
+                if getattr(part, "type", None) in ("output_text", "text") and getattr(part, "text", None):
+                    return part.text.strip()
+    except Exception:
+        pass
+
+def analyze_for_water():
+    data_url = to_data_url(IMAGE_PATH)
+    prompt = (
+        "Analyze the image carefully. Respond with ONLY 'YES' if there is visible water "
+        "(such as a river, pool, bottle of water, puddle, etc). Otherwise respond 'NO'."
+    )
+
+    resp = client.responses.create(
+        model=MODEL,
+        reasoning={"effort": "low"},
+        max_output_tokens=10,
+        input=[{
+            "role": "user",
+            "content": [
+                {"type": "input_text", "text": prompt},
+                {"type": "input_image", "image_url": data_url}
+            ]
+        }],
+    )
+
+    result = extract_text(resp)
+    return result.upper().startswith("Y")  # True if model said "YES"
+
+if __name__ == '__main__': 	# Program start from here
+	setup(Vibrator)
+	try:
+    		loop()
+        return resp.model_dump_json(indent=2)
+  except Exception:
+        return str(resp)
+        while deviceOn:
+            capture_image(IMAGE_PATH)
+            print("Image captured — analyzing...")
+            has_water = analyze_for_water()
+            if has_water:
+              vibratorOn()
+            else:
+                  vibratorOff()
+	except KeyboardInterrupt:  # When 'Ctrl+C' is pressed, the child program destroy() will be  executed.
+    		destroy()
+

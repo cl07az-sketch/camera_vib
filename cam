@@ -1,42 +1,37 @@
 #!/usr/bin/env python3
 import RPi.GPIO as GPIO
 import time
-
-Vibrator = 11	# pin11
-
-def vibratorSetup(pin):
-	global vibratorPin
-	vibratorPin = pin
-	GPIO.setmode(GPIO.BOARD)   	# Numbers GPIOs by physical location
-	GPIO.setup(vibratorPin, GPIO.OUT)
-	GPIO.output(vibratorPin, GPIO.HIGH)
-
-def vibratorOn():
-	GPIO.output(vibratorPin, GPIO.LOW)
-
-def vibratorOff():
-	GPIO.output(vibratorPin, GPIO.HIGH)
-
-def vibratorBeep(x):
-	vibratorOn()
-	time.sleep(x)
-	vibratorOff()
-	time.sleep(x)
-
-def vibratorLoop():
-	while True:
-    	vibratorBeep(0.5)
-
-def vibratorDestroy():
-	GPIO.output(vibratorPin, GPIO.HIGH)
-	GPIO.cleanup()                 	# Release resource
-Camera functions : 
-
 import subprocess
 import base64
-import sys
-import time
 from openai import OpenAI
+
+# -------------------- GPIO (Vibrator) Setup --------------------
+
+VIBRATOR_PIN = 11  # Physical pin 11
+
+def vibrator_setup(pin):
+    GPIO.setmode(GPIO.BOARD)  # Use physical pin numbering
+    GPIO.setup(pin, GPIO.OUT)
+    GPIO.output(pin, GPIO.HIGH)
+
+def vibrator_on():
+    GPIO.output(VIBRATOR_PIN, GPIO.LOW)
+
+def vibrator_off():
+    GPIO.output(VIBRATOR_PIN, GPIO.HIGH)
+
+def vibrator_beep(duration):
+    vibrator_on()
+    time.sleep(duration)
+    vibrator_off()
+    time.sleep(duration)
+
+def vibrator_destroy():
+    GPIO.output(VIBRATOR_PIN, GPIO.HIGH)
+    GPIO.cleanup()  # Release GPIO resources
+
+
+# -------------------- Camera & OpenAI Analysis --------------------
 
 client = OpenAI(api_key="sk-REPLACE_WITH_NEW_KEY")
 
@@ -44,16 +39,18 @@ MODEL = "gpt-5-nano-2025-08-07"
 IMAGE_PATH = "captured_image.jpg"
 RESOLUTION = "640x480"
 
-
 def capture_image(path: str):
+    """Capture an image using fswebcam."""
     subprocess.run(["fswebcam", "-r", RESOLUTION, "-S", "2", "--no-banner", path], check=True)
 
-def to_data_url(path: str) -> str: 
+def to_data_url(path: str) -> str:
+    """Convert image to base64 data URL."""
     with open(path, "rb") as f:
         b64 = base64.b64encode(f.read()).decode("utf-8")
     return f"data:image/jpeg;base64,{b64}"
 
 def extract_text(resp):
+    """Extract plain text output from the model response."""
     text = getattr(resp, "output_text", None)
     if text:
         return text.strip()
@@ -64,8 +61,10 @@ def extract_text(resp):
                     return part.text.strip()
     except Exception:
         pass
+    return ""
 
 def analyze_for_water():
+    """Send image to OpenAI model and check for water."""
     data_url = to_data_url(IMAGE_PATH)
     prompt = (
         "Analyze the image carefully. Respond with ONLY 'YES' if there is visible water "
@@ -86,23 +85,37 @@ def analyze_for_water():
     )
 
     result = extract_text(resp)
+    print(f"Model response: {result}")
     return result.upper().startswith("Y")  # True if model said "YES"
 
-if __name__ == '__main__': 	# Program start from here
-	setup(Vibrator)
-	try:
-    		loop()
-        return resp.model_dump_json(indent=2)
-  except Exception:
-        return str(resp)
-        while deviceOn:
+
+# -------------------- Main Program --------------------
+
+if __name__ == '__main__':
+    try:
+        vibrator_setup(VIBRATOR_PIN)
+        print("Vibrator initialized.")
+        device_on = True
+
+        while device_on:
             capture_image(IMAGE_PATH)
             print("Image captured — analyzing...")
             has_water = analyze_for_water()
-            if has_water:
-              vibratorOn()
-            else:
-                  vibratorOff()
-	except KeyboardInterrupt:  # When 'Ctrl+C' is pressed, the child program destroy() will be  executed.
-    		destroy()
 
+            if has_water:
+                print("Water detected — vibrator ON.")
+                vibrator_on()
+            else:
+                print("No water detected — vibrator OFF.")
+                vibrator_off()
+
+            # Wait before next capture
+            time.sleep(5)
+
+    except KeyboardInterrupt:
+        print("\nProgram interrupted. Cleaning up...")
+        vibrator_destroy()
+
+    except Exception as e:
+        print(f"Error: {e}")
+        vibrator_destroy()

@@ -74,7 +74,7 @@ def analyze_for_water():
     resp = client.responses.create(
         model=MODEL,
         reasoning={"effort": "low"},
-        max_output_tokens=10,
+        max_output_tokens=24,
         input=[{
             "role": "user",
             "content": [

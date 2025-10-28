@@ -15,10 +15,10 @@ def vibrator_setup(pin):
     GPIO.output(pin, GPIO.HIGH)
 
 def vibrator_on():
-    GPIO.output(VIBRATOR_PIN, GPIO.LOW)
+    GPIO.output(VIBRATOR_PIN, GPIO.HIGH)
 
 def vibrator_off():
-    GPIO.output(VIBRATOR_PIN, GPIO.HIGH)
+    GPIO.output(VIBRATOR_PIN, GPIO.LOW)
 
 def vibrator_beep(duration):
     vibrator_on()
